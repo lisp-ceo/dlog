@@ -61,6 +61,10 @@ func (i *index) Close() error {
 	return i.file.Close()
 }
 
+func (i *index) Name() string {
+	return i.file.Name()
+}
+
 // Read returns the position of an entry in the store. pos is the byte offset of the entry, relative to the start of the
 // file. out is the entry's position in the index.
 func (i *index) Read(in int64) (out uint32, pos uint64, err error) {
@@ -79,4 +83,23 @@ func (i *index) Read(in int64) (out uint32, pos uint64, err error) {
 	out = enc.Uint32(i.mmap[pos : pos+offWidth])
 	pos = enc.Uint64(i.mmap[pos+offWidth : pos+entWidth])
 	return out, pos, nil
+}
+
+// Write adds an entry (offset, then position) to the index. Returns io.EOF when out of space.
+func (i *index) Write(off uint32, pos uint64) error {
+	if uint64(len(i.mmap)) < i.size+entWidth {
+		return io.EOF
+	}
+	enc.PutUint32(i.mmap[i.size:i.size+offWidth], off)
+	enc.PutUint64(i.mmap[i.size+offWidth:i.size+entWidth], pos) // posWidth = 2 * offWidth
+	i.size += uint64(entWidth)
+	return nil
+}
+
+type Config struct {
+	Segment struct {
+		MaxStoreBytes uint64
+		MaxIndexBytes uint64
+		InitialOffset uint64
+	}
 }
