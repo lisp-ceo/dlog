@@ -10,10 +10,8 @@ import (
 	api "github.com/lisp-ceo/dlog/api/v1"
 )
 
-// Segment coordinates the index and store.
-// Writes entries to index for data in store.
-// Reads entry from index, uses position to read data from store.
-
+// Segment coordinates the index and store. Writes entries to index for data in store. Reads entry from index, uses
+// position to read data from store.
 type segment struct {
 	store                  *store
 	index                  *index
