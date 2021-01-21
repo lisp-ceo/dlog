@@ -29,12 +29,15 @@ func newStore(f *os.File) (*store, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	size := uint64(fi.Size())
+
 	return &store{
 		File: f,
 		buf:  bufio.NewWriter(f),
 		size: size,
 	}, nil
+
 }
 
 func (s *store) Append(p []byte) (n uint64, pos uint64, err error) {
@@ -45,14 +48,18 @@ func (s *store) Append(p []byte) (n uint64, pos uint64, err error) {
 	if err := binary.Write(s.buf, enc, uint64(len(p))); err != nil {
 		return 0, 0, err
 	}
+
 	w, err := s.buf.Write(p)
 	if err != nil {
 		return 0, 0, err
 	}
+
 	// add the width of the size
 	w += lenWidth
 	s.size += uint64(w)
+
 	return uint64(w), pos, nil
+
 }
 
 func (s *store) Read(pos uint64) ([]byte, error) {
@@ -78,7 +85,9 @@ func (s *store) ReadAt(p []byte, off int64) (int, error) {
 	if err := s.buf.Flush(); err != nil {
 		return 0, err
 	}
+
 	return s.File.ReadAt(p, off)
+
 }
 
 func (s *store) Close() error {

@@ -20,7 +20,7 @@ func TestIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	_, _, err = idx.Read(-1)
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Equal(t, f.Name(), idx.Name())
 
 	entries := []struct {
@@ -49,7 +49,7 @@ func TestIndex(t *testing.T) {
 	f, _ = os.OpenFile(f.Name(), os.O_RDWR, 0600)
 	idx, err = newIndex(f, c)
 	require.NoError(t, err)
-	off, pos, err := idx.Read(-1)
+	off, pos, _ := idx.Read(-1)
 	require.Equal(t, uint32(1), off)
 	require.Equal(t, entries[1].Pos, pos)
 }
