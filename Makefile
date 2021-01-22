@@ -16,7 +16,16 @@ examples:
 build: api/v1/log.pb.go
 
 clean:
-	rm ./api/v1/*.go
+	rm ./api/v1/*.pb.go
 
 api/v1/log.pb.go:
-	protoc api/v1/*.proto --gogo_out=Mgogoproto/gogo.proto=github.com/gogo/protobuf/proto:. --proto_path=$$(go list -f '{{ .Dir }}' -m github.com/gogo/protobuf) --proto_path=.
+	protoc api/v1/*.proto \
+	                --gogo_out=\
+	Mgogoproto/gogo.proto=github.com/gogo/protobuf/proto,plugins=grpc:. \
+	                --proto_path=\
+	$$(go list -f '{{ .Dir }}' -m github.com/gogo/protobuf) \
+	                --proto_path=.
+
+install:
+	go get google.golang.org/grpc@v1.26.0
+	go install github.com/gogo/protobuf/protoc-gen-gogo

@@ -1,7 +1,6 @@
 package log
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -30,14 +29,18 @@ func NewLog(dir string, c Config) (*Log, error) {
 	if c.Segment.MaxStoreBytes == 0 {
 		c.Segment.MaxStoreBytes = 1024
 	}
+
 	if c.Segment.MaxIndexBytes == 0 {
 		c.Segment.MaxIndexBytes = 1024
 	}
+
 	l := &Log{
 		Dir:    dir,
 		Config: c,
 	}
+
 	return l, l.initSegments()
+
 }
 
 // Close flushes the log segments.
@@ -74,7 +77,9 @@ func (l *Log) HighestOffset() (uint64, error) {
 	if off == 0 {
 		return 0, nil
 	}
-	return (off - 1), nil
+
+	return off - 1, nil
+
 }
 
 // initSegments reads existing segments from disk or creates a new segment for writing.
@@ -132,6 +137,7 @@ func (l *Log) newSegment(off uint64) error {
 func (l *Log) Read(off uint64) (*api.Record, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
+
 	var s *segment
 	for _, segment := range l.segments {
 		if segment.baseOffset <= off && off < segment.nextOffset {
@@ -139,22 +145,26 @@ func (l *Log) Read(off uint64) (*api.Record, error) {
 			break
 		}
 	}
-	//if s == nil || off > s.nextOffset {
-	if s == nil {
-		return nil, fmt.Errorf("offset out of range: %d", off)
+
+	if s == nil || off > s.nextOffset {
+		return nil, api.ErrOffsetOutOfRange{Offset: off}
 	}
+
 	return s.Read(off)
 }
 
 // Reader wraps the log stream in an io.MultiReader.
-func (l  *Log) Reader() io.Reader {
+func (l *Log) Reader() io.Reader {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	readers := make([]io.Reader, len(l.segments))
+
 	for i, segment := range l.segments {
 		readers[i] = &originReader{segment.store, 0}
 	}
+
 	return io.MultiReader(readers...)
+
 }
 
 type originReader struct {
@@ -165,7 +175,9 @@ type originReader struct {
 func (o *originReader) Read(b []byte) (int, error) {
 	n, err := o.ReadAt(b, o.off)
 	o.off += int64(n)
+
 	return n, err
+
 }
 
 // Remove deletes all logs.
@@ -173,15 +185,19 @@ func (l *Log) Remove() error {
 	if err := l.Close(); err != nil {
 		return err
 	}
+
 	return os.RemoveAll(l.Dir)
+
 }
 
-// Reset reinitializes the logs on disk.
+// Reset re-initializes the logs on disk.
 func (l *Log) Reset() error {
 	if err := l.Remove(); err != nil {
 		return err
 	}
+
 	return l.initSegments()
+
 }
 
 // Truncate removes all segment that have an offset less than lowest.
@@ -201,4 +217,3 @@ func (l *Log) Truncate(lowest uint64) error {
 	l.segments = segments
 	return nil
 }
-
