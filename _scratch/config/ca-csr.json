@@ -1,0 +1,16 @@
+{
+  "CN": "dlog inc. CA",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "AU",
+      "L": "Melbourne",
+      "ST": "Victoria",
+      "O": "dlog client",
+      "OU": "Operations"
+    }
+  ]
+}
