@@ -56,9 +56,33 @@ _scratch/certs:
 		-config=${PKI_PATH}/ca-config.json \
 		-profile=server \
 		${PKI_PATH}/server-csr.json | cfssljson -bare server
-	mv ca.csr ${CERT_PATH}
-	mv server.csr ${CERT_PATH}
+	cfssl gencert \
+		-ca=ca.pem \
+		-ca-key=ca-key.pem \
+		-config=${PKI_PATH}/ca-config.json \
+		-profile=client \
+		-cn=root \
+		${PKI_PATH}/client-csr.json | cfssljson -bare root
+	cfssl gencert \
+		-ca=ca.pem \
+		-ca-key=ca-key.pem \
+		-config=${PKI_PATH}/ca-config.json \
+		-profile=client \
+		-cn=unauthorized \
+		${PKI_PATH}/client-csr.json | cfssljson -bare unauthorized
 	mv ca-key.pem ${CERT_PATH}
+	mv ca.csr ${CERT_PATH}
 	mv ca.pem ${CERT_PATH}
+
 	mv server-key.pem ${CERT_PATH}
+	mv server.csr ${CERT_PATH}
 	mv server.pem ${CERT_PATH}
+
+	mv root-key.pem ${CERT_PATH}
+	mv root.pem ${CERT_PATH}
+	mv root.csr ${CERT_PATH}
+
+	mv unauthorized-key.pem ${CERT_PATH}
+	mv unauthorized.pem ${CERT_PATH}
+	mv unauthorized.csr ${CERT_PATH}
+
