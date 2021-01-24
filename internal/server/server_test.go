@@ -7,23 +7,25 @@ import (
 	"testing"
 
 	api "github.com/lisp-ceo/dlog/api/v1"
+	"github.com/lisp-ceo/dlog/internal/config"
 	"github.com/lisp-ceo/dlog/internal/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
 func TestServer(t *testing.T) {
-	for scenario, fn := range map[string]func(t *testing.T, client api.LogClient, config *Config){
+	for scenario, fn := range map[string]func(t *testing.T, client api.LogClient, cfg *Config){
 		"produce/consume a message to/from the log succeeds": testProduceConsume,
 		"produce/consume stream succeeds":                    testProduceConsumeStream,
 		"consume past log boundary fails":                    testConsumePastBoundary,
 	} {
 		t.Run(scenario, func(t *testing.T) {
-			client, config, teardown := setupTest(t, nil)
+			client, cfg, teardown := setupTest(t, nil)
 			defer teardown()
-			fn(t, client, config)
+			fn(t, client, cfg)
 		})
 	}
 }
@@ -113,43 +115,61 @@ func testConsumePastBoundary(t *testing.T, client api.LogClient, _ *Config) {
 func setupTest(t *testing.T, fn func(*Config)) (api.LogClient, *Config, func()) {
 	t.Helper()
 
-	l, err := net.Listen("tcp", ":0")
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	clientOptions := []grpc.DialOption{grpc.WithInsecure()}
-	cc, err := grpc.Dial(l.Addr().String(), clientOptions...)
+	// client tls setup
+	clientTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CAFile: config.CAFile,
+	})
 	require.NoError(t, err)
 
+	clientCreds := credentials.NewTLS(clientTLSConfig)
+	cc, err := grpc.Dial(
+		l.Addr().String(),
+		grpc.WithTransportCredentials(clientCreds),
+	)
+	require.NoError(t, err)
+
+	client := api.NewLogClient(cc)
+
+	// server tls setup
+	serverTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CertFile:      config.ServerCertFile,
+		KeyFile:       config.ServerKeyFile,
+		CAFile:        config.CAFile,
+		ServerAddress: l.Addr().String(),
+	})
+	require.NoError(t, err)
+
+	serverCreds := credentials.NewTLS(serverTLSConfig)
 	dir, err := ioutil.TempDir("", "server-test")
 	require.NoError(t, err)
 
 	clog, err := log.NewLog(dir, log.Config{})
 	require.NoError(t, err)
 
-	config := &Config{
+	cfg := &Config{
 		l: clog,
 	}
 
 	if fn != nil {
-		fn(config)
+		fn(cfg)
 	}
 
-	server, err := NewGRPCServer(config)
+	server, err := NewGRPCServer(cfg, grpc.Creds(serverCreds))
 	require.NoError(t, err)
 
 	go func() {
 		_ = server.Serve(l)
 	}()
 
-	client := api.NewLogClient(cc)
-
-	teardown := func() {
+	return client, cfg, func() {
 		server.Stop()
+
 		_ = cc.Close()
 		_ = l.Close()
-		_ = clog.Remove()
-	}
 
-	return client, config, teardown
+	}
 
 }
